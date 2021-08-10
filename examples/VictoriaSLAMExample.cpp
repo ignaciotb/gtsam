@@ -59,6 +59,18 @@ void saveResults(const Values& result, const string& outfilename)
     std::cout << "Results saved" << std::endl;
 }
 
+Values solverLM(NonlinearFactorGraph &graph, Values &initialEstimate)
+{
+    // Optimize
+    LevenbergMarquardtParams paramsLM;
+    //   paramsLM.linearSolverType = LevenbergMarquardtParams::MULTIFRONTAL_QR;
+    LevenbergMarquardtOptimizer optimizer(graph, initialEstimate);
+    Values result = optimizer.optimize();
+    //   result.print("Final Result:\n");
+
+    return result;
+}
+
 int main(int argc, char** argv) {
   
   // Load Victoria dataset
@@ -79,19 +91,29 @@ int main(int argc, char** argv) {
       Vector3(0.0, 0.0, 0.0));           // 30cm std on x,y, 0.1 rad on theta
   graph->addPrior(0, prior, priorNoise); // add directly to graph
 
-  saveResults(*initialEstimate, testfilename);
+  // Save input estimate for plotting
+//   saveResults(*initialEstimate, testfilename);
+
+  KeyVector keys{144, 145, 146};
+  Marginals marginals(*graph, *initialEstimate);
+  JointMarginal joint = marginals.jointMarginalCovariance(keys);
+  std::cout << joint.fullMatrix() << std::endl;
 
   // Optimize
-  LevenbergMarquardtParams paramsLM;
-  paramsLM.linearSolverType = LevenbergMarquardtParams::MULTIFRONTAL_QR;
-  LevenbergMarquardtOptimizer optimizer(*graph, *initialEstimate, paramsLM);
-  Values result = optimizer.optimize();
+  Values result = solverLM(*graph, *initialEstimate);
 
+  // Save trajectory and map
   saveResults(result, outfilename);
 
-//   std::cout << "First pose" << std::endl;
-//   Pose2 pose = result.at(0).cast<Pose2>();
-//   std::cout << pose.x() << " " << pose.y() << " " << pose.theta() << std::endl;
+  // Test marginals
+//   KeyVector keys{144, 145, 146};
+  Marginals marginals_results(*graph, result);
+  JointMarginal joint_results = marginals_results.jointMarginalCovariance(keys);
+  std::cout << joint_results.fullMatrix() << std::endl;
+  
+    //   std::cout << "First pose" << std::endl;
+    //   Pose2 pose = result.at(0).cast<Pose2>();
+    //   std::cout << pose.x() << " " << pose.y() << " " << pose.theta() << std::endl;
 
       return 0;
 } 
