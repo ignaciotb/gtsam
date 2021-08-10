@@ -62,25 +62,30 @@ void saveResults(const Values& result, const string& outfilename)
 int main(int argc, char** argv) {
   
   // Load Victoria dataset
-  const string filename = findExampleDataFile("victoria_park_test.txt");
+  const string filename = findExampleDataFile("victoria_park.txt");
+  const string testfilename = "victoria_test_in.txt";
   const string outfilename = "victoria_test_out.txt";
-  
+
   // Create a factor graph
   NonlinearFactorGraph::shared_ptr graph;
   Values::shared_ptr initialEstimate;
   // Load all
   boost::tie(graph, initialEstimate) = load2D(filename);
-  
-  // Print
-  graph->print("Factor Graph:\n");
 
-  // Print
-  initialEstimate->print("Initial Estimate:\n");
+  // Add a prior on pose x1 at the origin. A prior factor consists of a mean and
+  // a noise model (covariance matrix)
+  Pose2 prior(0.0, 0.0, 0.0); // prior mean is at origin
+  auto priorNoise = noiseModel::Diagonal::Sigmas(
+      Vector3(0.0, 0.0, 0.0));           // 30cm std on x,y, 0.1 rad on theta
+  graph->addPrior(0, prior, priorNoise); // add directly to graph
+
+  saveResults(*initialEstimate, testfilename);
 
   // Optimize
-  LevenbergMarquardtOptimizer optimizer(*graph, *initialEstimate);
+  LevenbergMarquardtParams paramsLM;
+  paramsLM.linearSolverType = LevenbergMarquardtParams::MULTIFRONTAL_QR;
+  LevenbergMarquardtOptimizer optimizer(*graph, *initialEstimate, paramsLM);
   Values result = optimizer.optimize();
-  result.print("Final Result:\n");
 
   saveResults(result, outfilename);
 
