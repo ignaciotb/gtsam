@@ -24,6 +24,9 @@
 
 #include <gtsam/slam/dataset.h>
 
+#include <gtsam/nonlinear/NonlinearISAM.h>
+#include <gtsam/nonlinear/ISAM2.h>
+
 using namespace std;
 using namespace gtsam;
 
@@ -65,10 +68,29 @@ Values solverLM(NonlinearFactorGraph &graph, Values &initialEstimate)
     LevenbergMarquardtParams paramsLM;
     //   paramsLM.linearSolverType = LevenbergMarquardtParams::MULTIFRONTAL_QR;
     LevenbergMarquardtOptimizer optimizer(graph, initialEstimate);
-    Values result = optimizer.optimize();
-    //   result.print("Final Result:\n");
 
-    return result;
+    return optimizer.optimize();
+}
+
+Values solverISAM2(NonlinearFactorGraph& graph, Values& initialEstimate){
+    ISAM2Params parameters;
+    parameters.relinearizeThreshold = 0.0001;
+    // parameters.relinearizeSkip = 1;
+    ISAM2 isam(parameters);
+
+    isam.update(graph, initialEstimate);
+
+    return isam.calculateEstimate();
+}
+
+Values solverISAM(NonlinearFactorGraph &graph, Values &initialEstimate)
+{
+    int relinearizeInterval = 1;
+    NonlinearISAM isam(relinearizeInterval);
+
+    isam.update(graph, initialEstimate);
+
+    return isam.estimate();
 }
 
 int main(int argc, char** argv) {
