@@ -100,42 +100,36 @@ int main(int argc, char** argv) {
   const string testfilename = "victoria_test_in.txt";
   const string outfilename = "victoria_test_out.txt";
 
-  // Create a factor graph
+  // Create a factor graph and load dataset
   NonlinearFactorGraph::shared_ptr graph;
   Values::shared_ptr initialEstimate;
-  // Load all
   boost::tie(graph, initialEstimate) = load2D(filename);
 
   // Add a prior on pose x1 at the origin. A prior factor consists of a mean and
-  // a noise model (covariance matrix)
-  Pose2 prior(0.0, 0.0, 0.0); // prior mean is at origin
-  auto priorNoise = noiseModel::Diagonal::Sigmas(
-      Vector3(0.0, 0.0, 0.0));           // 30cm std on x,y, 0.1 rad on theta
-  graph->addPrior(0, prior, priorNoise); // add directly to graph
+  auto priorNoise = noiseModel::Diagonal::Sigmas(Vector3(0.0, 0.0, 0.0));
+  graph->addPrior(0, initialEstimate->at(0).cast<Pose2>(), priorNoise); // add directly to graph
 
   // Save input estimate for plotting
-//   saveResults(*initialEstimate, testfilename);
+  // saveResults(*initialEstimate, testfilename);
 
-  KeyVector keys{144, 145, 146};
+  // Test marginals
+  KeyVector keys{Symbol('l', 6222), Symbol('l', 6253), Symbol('l', 6218)};
   Marginals marginals(*graph, *initialEstimate);
   JointMarginal joint = marginals.jointMarginalCovariance(keys);
   std::cout << joint.fullMatrix() << std::endl;
 
   // Optimize
-  Values result = solverLM(*graph, *initialEstimate);
+//   Values result = solverLM(*graph, *initialEstimate);
+  Values result = solverISAM(*graph, *initialEstimate);
 
   // Save trajectory and map
   saveResults(result, outfilename);
 
-  // Test marginals
-//   KeyVector keys{144, 145, 146};
+//   result.print("Current estimate: ");
+
   Marginals marginals_results(*graph, result);
   JointMarginal joint_results = marginals_results.jointMarginalCovariance(keys);
   std::cout << joint_results.fullMatrix() << std::endl;
   
-    //   std::cout << "First pose" << std::endl;
-    //   Pose2 pose = result.at(0).cast<Pose2>();
-    //   std::cout << pose.x() << " " << pose.y() << " " << pose.theta() << std::endl;
-
-      return 0;
+  return 0;
 } 
